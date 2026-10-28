@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace CarSimulator
 {
-    internal class Car
+    internal class Car   // håller tillståndet i sina fält, uppdaterar det och paketerar värdena i TelemetryData (Bilens motorstyrenhet ECU) 
     {
         // These constants can be adjusted to change the simulation's behavior.
         private const double MaxFuelConsumptionPerSecond = 0.005; // liters per second
@@ -24,20 +25,50 @@ namespace CarSimulator
         private readonly Random _random = new Random();
         private readonly HttpClient _httpClient = new HttpClient();
 
+        private readonly string _apiKey;         
+
+        public Car(string apiKey)                
+        {
+            _apiKey = apiKey;
+        }
+
+
+
         // Represents a single telemetry data point
-        private class TelemetryData
-        {   
-            public double Speed { get; set; }
+        private class TelemetryData   //klass som håller ett mättillfälle.
+        {                               //paketet som ska skickas till ThingSpeak var 15:e sekund
+                                        //där du man se grafer över hastighet, varvtal, bränsle och temperatur
+                                        //i syfte att kunna övervaka i realtid, upptäcka fel tidigt,
+                                        //se trender över tid och fatta beslut
 
-            public double Rpm { get; set; }
 
-            public double FuelLevel { get; set; }
+            [JsonPropertyName("api_key")]
+            public required string ApiKey { get; init; }
 
-            public double EngineTemp { get; set; }
+
+            [JsonPropertyName("created_at")]
+            public required DateTime CreatedAt { get; init; }
+
+
+            [JsonPropertyName("field1")]
+            public double Rpm { get; init; }
+
+
+            [JsonPropertyName("field2")]
+            public double Speed { get; init; }
+
+
+            [JsonPropertyName("field3")]
+            public double FuelLevel { get; init; }
+
+
+            [JsonPropertyName("field4")]
+            public double EngineTemp { get; init; }
+
         }
 
         // Main simulation loop
-        public async void StartSimulation()
+        public async void StartSimulation() 
         {
             Console.WriteLine("Starting car telemetry simulation...");
             var startTime = DateTime.Now;
@@ -45,17 +76,22 @@ namespace CarSimulator
             while (true)
             {
                 var elapsedTime = DateTime.Now - startTime;
-                if (elapsedTime.TotalMinutes >= TripDurationMinutes)
+                if (elapsedTime.TotalMinutes >= TripDurationMinutes)  //om 10 minuter har gått (eller det värdet som satts på
+                                                                      //"private const int TripDurationMinutes"). I så fall avslutas loopen
                 {
                     Console.WriteLine("Simulation finished. Trip duration reached.");
                     break;
                 }
 
-                SimulateTrip();
+                SimulateTrip(); //Anropas för att uppdatera bilens tillstånd 
 
-                var data = new TelemetryData
+                var data = new TelemetryData  //skapar ett nytt TelemetryData-objekt och
+                                              //kopierar de aktuella värdena från fälten in i det
                 {
-                    Speed = Math.Round(_currentSpeed, 2),
+
+                    ApiKey = _apiKey,
+                    CreatedAt = DateTime.UtcNow, // UTC - standard för tidsstämplar i system som tar emot data från flera källor
+                    Speed = Math.Round(_currentSpeed, 2),  //Math.Round(värde, 2) - 2 avrundar till två decimaler:
                     Rpm = Math.Round(_currentRpm, 2),
                     FuelLevel = Math.Round(_currentFuelLevel, 2),
                     EngineTemp = Math.Round(GenerateEngineTemperature(), 2)
@@ -69,25 +105,28 @@ namespace CarSimulator
         }
 
         // Simulates the car's movement and state changes
-        private void SimulateTrip()
+        private void SimulateTrip() //Första varvet utgår den från startvärdena (0 km/h, 800 rpm, 100 %),
+                                    //nästa varv från värdena det förra varvet lämnade efter sig.
         {
             // Simple state machine for the trip: Idle -> Accelerate -> Cruise -> Decelerate -> Idle
             string tripPhase;
-            if (_currentSpeed < 30)
+            if (_currentSpeed < 30) //under 30 acceleration 
             {
                 tripPhase = "Accelerating";
             }
-            else if (_currentSpeed < 90)
+            else if (_currentSpeed < 90)  //mellan 30 och 90 åk - ungefär jämn hastighet
             {
                 tripPhase = "Cruising";
             }
             else
             {
-                tripPhase = "Decelerating";
+                tripPhase = "Decelerating";     //över 90 inbromsning
             }
 
             // Adjust speed and RPM based on the current phase
-            switch (tripPhase)
+            switch (tripPhase)  //väljer vad som ska göras utifrån fasen
+                                //switch (tripPhase)jämför strängen med varje case
+
             {
                 case "Accelerating":
                     _currentSpeed += _random.Next(2, 5); // Increase speed
@@ -104,19 +143,28 @@ namespace CarSimulator
             }
 
             // Clamp speed to a realistic range
-            _currentSpeed = Math.Max(MinSpeed, Math.Min(MaxSpeed, _currentSpeed));
-            _currentRpm = Math.Max(IdleRpm, _currentRpm);
+            //håller värdena inom gränser
+            _currentSpeed = Math.Max(MinSpeed, Math.Min(MaxSpeed, _currentSpeed)); //Math.Min(MaxSpeed) tar det minsta av de två
+                                                                                   //Math.Min(MaxSpeed) tar det största, så allt under 0 blir 0
+
+
+            _currentRpm = Math.Max(IdleRpm, _currentRpm);//håller värdena inom gränser - har
+                                                         //ingen effekt i praktiken, eftersom CalculateRpm
+                                                         //aldrig returnerar mindre än 800,
 
             // Calculate fuel consumption based on speed and RPM
             double consumptionRate = (_currentSpeed / MaxSpeed) * (_currentRpm / MaxRpm) * MaxFuelConsumptionPerSecond;
+                                                        //Hastighet och varvtal görs om till andelar mellan 0 och 1,
+                                                            //multipliceras och skalas med maxförbrukningen
             _currentFuelLevel -= consumptionRate * UpdateIntervalSeconds;
-            _currentFuelLevel = Math.Max(0, _currentFuelLevel);
+            _currentFuelLevel = Math.Max(0, _currentFuelLevel);  //ser till att tanken inte går under noll
         }
 
         // A simple function to calculate RPM based on speed for a more realistic feel
-        private double CalculateRpm(double speed)
+        
+        private double CalculateRpm(double speed)  //låtsassensor
         {
-            if (speed < 1)
+            if (speed < 1)   //Under 1 km/h returneras tomgångsvarvet (IdleRpm)
             {
                 return IdleRpm;
             }
@@ -125,14 +173,25 @@ namespace CarSimulator
         }
 
         // Generates a realistic engine temperature based on speed
-        private double GenerateEngineTemperature()
+        private double GenerateEngineTemperature() //låtsassensor
         {
             // Engine runs hotter at higher RPM/speed
-            double baseTemp = 85;
+            double baseTemp = 85;  //Bastemperatur 85 grader
             double speedFactor = _currentSpeed / MaxSpeed;
-            double temp = baseTemp + (speedFactor * _random.Next(0, 15));
-            return Math.Max(80, Math.Min(110, temp));
+            double temp = baseTemp + (speedFactor * _random.Next(0, 15));//Lägsta möjliga: 85 + 0 = 85 grader
+                                                                        //Högsta möjliga: 85 + (1 × 14) = 99 grader
+            return Math.Max(80, Math.Min(110, temp));  //Math.Min(a, b) returnerar det minsta av två tal.
+                                                       //Math.Max(a, b) returnerar det största av två tal
+                                                       // om någon skulle få för sig att ändra ovanstående till 
+                                                       //double temp = baseTemp + (speedFactor * _random.Next(0, 40))
+                                                       // så skyddar koden så attdet alltid hamnar mellan 80 och 110
         }
 
     }
-}
+}          //Det finns inga aktuatorer. Men om programmet läste temperaturen från ThingSpeak och skickade “starta fläkten”
+           //vid över 95 °C, skulle det vara en aktuator-styrning.
+           //Finns ingen egen gateway. En HttpClient skickar direkt till ThingSpeak, och i praktiken
+           //fungerar en internetuppkoppling och router som vägen ut.
+
+            //Sammanhang: Sensor mäter → enheten samlar in och paketerar → gatewayen förmedlar → molnet tar emot
+            //och lagrar (telemetri) → analys och beslut → eventuellt en signal tillbaka till en aktuator.
