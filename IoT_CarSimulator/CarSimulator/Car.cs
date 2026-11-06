@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json.Serialization;
+using System.Net.Http.Json;  // innehåller PostAsJsonAsync, som gör om objektet till JSON och skickar det i ett steg.
+using System.Text.Json.Serialization;
 
 namespace CarSimulator
 {
@@ -22,7 +24,8 @@ namespace CarSimulator
         private double _currentSpeed = 0;
         private double _currentRpm = IdleRpm;
         private double _currentFuelLevel = 100.0; // Starts at 100%
-        private readonly Random _random = new Random();
+        private readonly Random _random = new Random();  //slumptalsgenerator. Så att simuleringen
+                                                         //inte blir exakt likadan varje gång.
         private readonly HttpClient _httpClient = new HttpClient();
 
         private readonly string _apiKey;         
@@ -51,11 +54,11 @@ namespace CarSimulator
 
 
             [JsonPropertyName("field1")]
-            public double Rpm { get; init; }
+            public double Speed { get; init; }
 
 
             [JsonPropertyName("field2")]
-            public double Speed { get; init; }
+            public double RPM { get; init; }
 
 
             [JsonPropertyName("field3")]
@@ -92,13 +95,19 @@ namespace CarSimulator
                     ApiKey = _apiKey,
                     CreatedAt = DateTime.UtcNow, // UTC - standard för tidsstämplar i system som tar emot data från flera källor
                     Speed = Math.Round(_currentSpeed, 2),  //Math.Round(värde, 2) - 2 avrundar till två decimaler:
-                    Rpm = Math.Round(_currentRpm, 2),
+                    RPM = Math.Round(_currentRpm, 2),
                     FuelLevel = Math.Round(_currentFuelLevel, 2),
                     EngineTemp = Math.Round(GenerateEngineTemperature(), 2)
                 };
 
                 Console.WriteLine($"Time: {elapsedTime.TotalSeconds:F0}s | Speed: {_currentSpeed:F0} km/h | RPM: {_currentRpm:F0} | Fuel: {_currentFuelLevel:F1}%");
 
+                _httpClient.PostAsJsonAsync("https://api.thingspeak.com/update.json", data).Wait(); //_httpClient sköter HTTP-kommunikation,
+                                                                                                    //PostAsJsonAsync(...) gör om data till JSON och skickar
+                                                                                                    //med POST, data – TelemetryData-objekt med nyckel, tid och
+                                                                                                    //de fyra värdena.
+                                                                                                    // wait -  väntar tills anropet är klart innan koden går vidare
+                                                                                                    // till Thread.Sleep
 
                 Thread.Sleep(TimeSpan.FromSeconds(UpdateIntervalSeconds));
             }
