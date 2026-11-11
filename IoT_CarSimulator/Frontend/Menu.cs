@@ -1,6 +1,8 @@
 ﻿using Frontend.DTO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http.Json;
 using System.Text;
@@ -207,8 +209,59 @@ namespace Frontend
                 Console.WriteLine($"Varvtal: {car.RPM} RPM");
                 Console.WriteLine($"Bränslenivå: {car.FuelLevel}");
                 Console.WriteLine($"Motortemperatur: {car.EngineTemp}");
+
+                Console.WriteLine($"Medelvärde varvtal: {car.RPM}");
+
                 Console.WriteLine();
+
             }
+
+
+
+
+            //Uträkning medelhastiget RPM och hastighet
+
+
+
+
+            //summor och räknare skapas med startvärdet 0
+            double speedSum = 0;
+            double rpmSum = 0;
+            int speedCount = 0;
+            int rpmCount = 0;
+
+            foreach (ReadCarDTO car in result.Feeds) //går igenom varje hämtad post i result.Feeds.
+            {
+                if (double.TryParse(car.Speed, NumberStyles.Any, CultureInfo.InvariantCulture, out double speed)) //varje värde måste omvandlas från text till tal 
+                                                //ThingSpeak skickar tal med punkt som decimaltecken ->
+                           //TryParse läser talet enligt datorns språkinställningar (här svenska: punkt = punkt, ej decimaltecken) - >
+                                                                 //CultureInfo.InvariantCulture gör att
+                                                                 //punkt läses som decimaltecken
+                {
+                    speedSum += speed; // om ovandlingen lyckas läggs det till summan (+=)
+                    speedCount++;      //...och ökar räknaren med 1 (++)...
+                    //... om det misslyckas hoppas posten över
+                }
+
+                if (double.TryParse(car.RPM, NumberStyles.Any, CultureInfo.InvariantCulture, out double rpm))
+                {
+                    rpmSum += rpm;
+                    rpmCount++;
+                }
+            }
+
+            Console.WriteLine($"Antal poster: {result.Feeds.Count}");
+
+            if (speedCount > 0) //förhindrar division med noll.
+                Console.WriteLine($"Medelhastighet: {speedSum / speedCount:F1} km/h"); //summan delas med antalet. :F1 = en decimal visas
+
+            if (rpmCount > 0)
+                Console.WriteLine($"Medelvarvtal: {rpmSum / rpmCount:F0} RPM"); //:F0 = noll decimaler visas
+
+
+
+
+
         }
     }
 }
