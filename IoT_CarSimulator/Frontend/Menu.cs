@@ -14,22 +14,15 @@ namespace Frontend
     {
 
 
-
-
-
-
-
-
         private readonly string _apiKey;
         private readonly string _channelID;
 
-        public Menu(string apiKey, string channelID)
+        public Menu(string apiKey, string channelID) //// Konstruktorn tar emot läsnyckel och kanal-ID från
+                                                     //// Program.cs och sparar dem i fälten
         {
             _apiKey = apiKey;
             _channelID = channelID;
         }
-
-
 
 
 
@@ -43,23 +36,6 @@ namespace Frontend
         }
 
 
-
-
-
-
-        /*
-
-        //Skapar CheckLibrary-objektet en gång här (innan loopen)
-        var library = new CheckLibrary();
-
-        //Skapar ett nytt objekt av typen AddBooks 
-        var addBooks = new AddBooks(library.Books); //Injekterar" listan med böcker från CheckLibrary in i AddBooks så
-                                                    //att AddBooks kan lägga till nya böcker).
-                                                    //skapar objekt för att fil-skriva/läsa
-        var fileHandler = new BookFileHandler();
-        var searchBooks = new SearchBooks(library.Books);
-
-        */
 
         public async Task Run()
 
@@ -79,46 +55,14 @@ namespace Frontend
                     case "1":
 
 
-                        Console.WriteLine("1. Period 24h – kommer snart");
+                        Console.WriteLine("1. Period 24h");
+                        await FetchAndShow("days=1");
                         Console.ReadKey();
                         Console.Clear();
                         break;
 
-                    /*
+                  
 
-
-                    Console.Write("ID: ");
-                    string id = Console.ReadLine();
-
-                    Console.Write("Titel: ");
-                    string titel = Console.ReadLine();
-
-                    Console.Write("Författare: ");
-                    string author = Console.ReadLine();
-
-
-
-
-
-
-
-                    Console.Write("Antal kopior: ");
-                    int copies = int.Parse(Console.ReadLine());
-
-
-                    // Lägg till boken i listan
-                    addBooks.AddBook(id, titel, author, copies);
-
-                    // Spara listan till fil 
-                    fileHandler.SaveBooks(library.Books);
-
-                    Console.WriteLine("Boken har lagts till och sparats!");
-                    Console.WriteLine("\n\nTryck på valfri knapp för att återvända till huvudmeny...");
-
-                    Console.ReadKey();
-                    Console.Clear();
-                    break;
-                    */
                     case "2":
 
                         Console.WriteLine("2. Senaste 100 datapunkterna\n");
@@ -130,52 +74,12 @@ namespace Frontend
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-                    /*
-
-                    Console.Write("\n\nAnge ID på boken du vill ta bort: ");
-                    string idToRemove = Console.ReadLine();
-
-                    BookRemover remover = new BookRemover(library.Books);
-
-                    bool success = remover.RemoveBook(idToRemove);
-
-                    if (success)
-                    {
-                        Console.WriteLine("Boken med ID: " + idToRemove + " har tagits bort nu från systemet.");
-
-                        fileHandler.SaveBooks(library.Books);
-                    }
-                    else
-                    {
-                        Console.WriteLine("Boken hittades inte");
-                    }
-                    Console.ReadKey();
-
-
-                    break;
-
-
-
-              */
-
-
-
                     case "0":
                         Console.WriteLine("Avslutas!");
                         keepRunning = false;
                         break;
+
+
 
                     default:
                         Console.WriteLine("Fel inmatning, Skriv en siffra mellan 0-2");
@@ -187,11 +91,13 @@ namespace Frontend
 
 
 
-        private async Task FetchAndShow(string period)
+        private async Task FetchAndShow(string period) //taget från kursinstruktionen: logiken och hur adressen byggs
+                                                       //och hur svaret hämtas
         {
             HttpClient apiClient = new() { BaseAddress = new Uri("https://api.thingspeak.com") };
-            string queryAddress = $"/channels/{_channelID}/feeds.json"
-                + $"?api_key={Uri.EscapeDataString(_apiKey)}&{period}";
+            string queryAddress = $"/channels/{_channelID}/feeds.json" //ändrat: _channelID (och apiKey, nedan) - Menu får värdena via konstruktorn
+                                                                       //och sparar dem i fält, i stället för att läsa variablerna i Program.cs
+                + $"?api_key={Uri.EscapeDataString(_apiKey)}&{period}";  //ändrat : {period} menyvalet bestämmer perioden
             Root? result = await apiClient.GetFromJsonAsync<Root>(queryAddress);
 
             if (result?.Feeds == null || result.Feeds.Count == 0)
@@ -207,10 +113,10 @@ namespace Frontend
                 Console.WriteLine($"Tid: {car.CreatedAt}");
                 Console.WriteLine($"Hastighet: {car.Speed} km/h");
                 Console.WriteLine($"Varvtal: {car.RPM} RPM");
-                Console.WriteLine($"Bränslenivå: {car.FuelLevel}");
-                Console.WriteLine($"Motortemperatur: {car.EngineTemp}");
+                Console.WriteLine($"Bränslenivå: {car.FuelLevel} %");
+                Console.WriteLine($"Motortemperatur: {car.EngineTemp} °C");
 
-                Console.WriteLine($"Medelvärde varvtal: {car.RPM}");
+                //Console.WriteLine($"Medelvärde varvtal: {car.RPM}");
 
                 Console.WriteLine();
 
@@ -220,9 +126,6 @@ namespace Frontend
 
 
             //Uträkning medelhastiget RPM och hastighet
-
-
-
 
             //summor och räknare skapas med startvärdet 0
             double speedSum = 0;
@@ -253,12 +156,10 @@ namespace Frontend
             Console.WriteLine($"Antal poster: {result.Feeds.Count}");
 
             if (speedCount > 0) //förhindrar division med noll.
-                Console.WriteLine($"Medelhastighet: {speedSum / speedCount:F1} km/h"); //summan delas med antalet. :F1 = en decimal visas
+                Console.WriteLine($"Medelvärde hastighet: {speedSum / speedCount:F1} km/h"); //summan delas med antalet. :F1 = en decimal visas
 
             if (rpmCount > 0)
-                Console.WriteLine($"Medelvarvtal: {rpmSum / rpmCount:F0} RPM"); //:F0 = noll decimaler visas
-
-
+                Console.WriteLine($"Medelvärde varvtal: {rpmSum / rpmCount:F0} RPM"); //:F0 = noll decimaler visas
 
 
 
