@@ -1,7 +1,6 @@
 ﻿using Frontend.DTO;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http.Json;
@@ -116,7 +115,7 @@ namespace Frontend
                 Console.WriteLine($"Bränslenivå: {car.FuelLevel} %");
                 Console.WriteLine($"Motortemperatur: {car.EngineTemp} °C");
 
-                //Console.WriteLine($"Medelvärde varvtal: {car.RPM}");
+                
 
                 Console.WriteLine();
 
@@ -125,7 +124,7 @@ namespace Frontend
 
 
 
-            //Uträkning medelhastiget RPM och hastighet
+            //Uträkning medelhastighet RPM och hastighet
 
             //summor och räknare skapas med startvärdet 0
             double speedSum = 0;
@@ -141,7 +140,7 @@ namespace Frontend
                                                                  //CultureInfo.InvariantCulture gör att
                                                                  //punkt läses som decimaltecken
                 {
-                    speedSum += speed; // om ovandlingen lyckas läggs det till summan (+=)
+                    speedSum += speed; // om omvandlingen lyckas läggs det till summan (+=)
                     speedCount++;      //...och ökar räknaren med 1 (++)...
                     //... om det misslyckas hoppas posten över
                 }
